@@ -35,7 +35,7 @@ class EventCheckinApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Smart Event Check-in',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,
       useInheritedMediaQuery: true,
       locale: DevicePreview.locale(context),

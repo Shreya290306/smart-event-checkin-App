@@ -36,7 +36,12 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> with SingleTicker
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
 
-    final result = await ref.read(currentEventParticipantsProvider.notifier).checkInUser(id, name: name);
+    final eventId = ref.read(currentEventIdProvider);
+    if (eventId == null) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+    final result = await ref.read(currentEventParticipantsProvider(eventId).notifier).checkInUser(id, name: name);
     
     if (!mounted) return;
     
@@ -87,13 +92,29 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> with SingleTicker
       children: [
         Expanded(
           flex: 2,
-          child: MobileScanner(
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-                _processCheckin(barcodes.first.rawValue!);
-              }
-            },
+          child: Stack(
+            children: [
+              MobileScanner(
+                controller: MobileScannerController(facing: CameraFacing.back),
+                onDetect: (capture) {
+                  final List<Barcode> barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                    _processCheckin(barcodes.first.rawValue!);
+                  }
+                },
+              ),
+              // Add a subtle overlay to make it look like a scanner
+              Center(
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.greenAccent, width: 3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(

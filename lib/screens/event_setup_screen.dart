@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 
 class EventSetupScreen extends ConsumerStatefulWidget {
@@ -16,20 +17,47 @@ class _EventSetupScreenState extends ConsumerState<EventSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _capacityController = TextEditingController();
+  DateTime? _selectedDate;
+
+  Future<void> _pickDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+    if (date == null) return;
+    
+    if (!mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time == null) return;
+
+    setState(() {
+      _selectedDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
 
   void _createEvent() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _selectedDate != null) {
       final name = _nameController.text;
       final capacity = int.parse(_capacityController.text);
       
-      await ref.read(eventsNotifierProvider.notifier).addEvent(name, DateTime.now(), capacity);
+      await ref.read(eventsNotifierProvider.notifier).addEvent(name, _selectedDate!, capacity);
       
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Event created successfully!')),
+        const SnackBar(content: Text('Event created successfully!'), backgroundColor: Colors.green),
       );
       _nameController.clear();
       _capacityController.clear();
+      setState(() => _selectedDate = null);
+    } else if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select Date & Time'), backgroundColor: Colors.redAccent),
+      );
     }
   }
 
@@ -85,7 +113,22 @@ class _EventSetupScreenState extends ConsumerState<EventSetupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        onTap: _pickDateTime,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Date & Time',
+                            prefixIcon: Icon(LucideIcons.clock),
+                          ),
+                          child: Text(
+                            _selectedDate == null ? 'Select Date & Time' : DateFormat('MMM dd, yyyy - hh:mm a').format(_selectedDate!),
+                            style: TextStyle(color: _selectedDate == null ? Colors.grey : null, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(

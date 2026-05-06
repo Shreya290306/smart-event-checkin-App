@@ -22,13 +22,15 @@ final eventsListProvider = Provider<List<EventModel>>((ref) {
   return ref.watch(dbProvider).getAllEvents();
 });
 
-// A StateNotifier to handle event creation and trigger rebuilds
-class EventsNotifier extends StateNotifier<List<EventModel>> {
-  final DatabaseService db;
-
-  EventsNotifier(this.db) : super(db.getAllEvents());
+// A Notifier to handle event creation and trigger rebuilds
+class EventsNotifier extends Notifier<List<EventModel>> {
+  @override
+  List<EventModel> build() {
+    return ref.watch(dbProvider).getAllEvents();
+  }
 
   Future<void> addEvent(String name, DateTime date, int maxCapacity) async {
+    final db = ref.read(dbProvider);
     final newEvent = EventModel(
       id: const Uuid().v4(),
       name: name,
@@ -40,19 +42,23 @@ class EventsNotifier extends StateNotifier<List<EventModel>> {
   }
 }
 
-final eventsNotifierProvider = StateNotifierProvider<EventsNotifier, List<EventModel>>((ref) {
-  return EventsNotifier(ref.watch(dbProvider));
+final eventsNotifierProvider = NotifierProvider<EventsNotifier, List<EventModel>>(() {
+  return EventsNotifier();
 });
 
 
-// A StateNotifier to handle check-ins and trigger rebuilds for a specific event
-class CheckinNotifier extends StateNotifier<List<ParticipantModel>> {
-  final DatabaseService db;
-  final String eventId;
+// A Notifier to handle check-ins and trigger rebuilds for a specific event
+class CheckinNotifier extends FamilyNotifier<List<ParticipantModel>, String> {
+  late String _eventId;
 
-  CheckinNotifier(this.db, this.eventId) : super(db.getParticipantsForEvent(eventId));
+  @override
+  List<ParticipantModel> build(String arg) {
+    _eventId = arg;
+    return ref.watch(dbProvider).getParticipantsForEvent(arg);
+  }
 
   Future<String> checkInUser(String participantId, {String? name}) async {
+    final db = ref.read(dbProvider);
     // 1. Validate if user is already checked in
     final existing = state.where((p) => p.id == participantId).toList();
     if (existing.isNotEmpty) {
@@ -60,7 +66,7 @@ class CheckinNotifier extends StateNotifier<List<ParticipantModel>> {
     }
 
     // 2. Validate capacity
-    final event = db.getEvent(eventId);
+    final event = db.getEvent(_eventId);
     if (event == null) return "ERROR: Event not found.";
     
     if (state.length >= event.maxCapacity) {
@@ -71,33 +77,37 @@ class CheckinNotifier extends StateNotifier<List<ParticipantModel>> {
     final participant = ParticipantModel(
       id: participantId,
       name: name,
-      eventId: eventId,
+      eventId: _eventId,
       checkInTime: DateTime.now(),
     );
 
     await db.saveParticipant(participant);
-    state = db.getParticipantsForEvent(eventId);
+    state = db.getParticipantsForEvent(_eventId);
     return "SUCCESS";
   }
 
   void refresh() {
-    state = db.getParticipantsForEvent(eventId);
+    final db = ref.read(dbProvider);
+    state = db.getParticipantsForEvent(_eventId);
   }
 }
 
 // Provider for participants of the current event
-final currentEventParticipantsProvider = StateNotifierProvider<CheckinNotifier, List<ParticipantModel>>((ref) {
+final currentEventParticipantsProvider = NotifierProviderFamily<CheckinNotifier, List<ParticipantModel>, String>(() {
+  return CheckinNotifier();
+});
+
+// Alias to easily watch participants for the *current* event
+final activeEventParticipantsProvider = Provider<List<ParticipantModel>>((ref) {
   final eventId = ref.watch(currentEventIdProvider);
-  if (eventId == null) {
-    return CheckinNotifier(ref.watch(dbProvider), '');
-  }
-  return CheckinNotifier(ref.watch(dbProvider), eventId);
+  if (eventId == null) return [];
+  return ref.watch(currentEventParticipantsProvider(eventId));
 });
 
 // Dashboard stats provider
 final dashboardStatsProvider = Provider<Map<String, dynamic>>((ref) {
   final event = ref.watch(currentEventProvider);
-  final participants = ref.watch(currentEventParticipantsProvider);
+  final participants = ref.watch(activeEventParticipantsProvider);
   
   if (event == null) return {};
 

@@ -17,7 +17,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final participants = ref.watch(currentEventParticipantsProvider);
+    final participants = ref.watch(activeEventParticipantsProvider);
     
     final filtered = participants.where((p) {
       final query = _searchQuery.toLowerCase();
