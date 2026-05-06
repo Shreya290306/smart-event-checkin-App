@@ -28,15 +28,16 @@ void main() async {
   );
 }
 
-class EventCheckinApp extends StatelessWidget {
+class EventCheckinApp extends ConsumerWidget {
   const EventCheckinApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'Smart Event Check-in',
       theme: AppTheme.lightTheme,
-      routerConfig: AppRouter.router,
+      routerConfig: router,
       useInheritedMediaQuery: true,
       locale: DevicePreview.locale(context),
       builder: DevicePreview.appBuilder,

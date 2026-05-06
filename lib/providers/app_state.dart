@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/event_model.dart';
 import '../models/participant_model.dart';
+import '../models/user_model.dart';
 import 'db_provider.dart';
 import 'package:uuid/uuid.dart';
+
+// Provides the currently logged in user
+final currentUserProvider = StateProvider<UserModel?>((ref) => null);
 
 // Provides the ID of the currently active event
 final currentEventIdProvider = StateProvider<String?>((ref) => null);
